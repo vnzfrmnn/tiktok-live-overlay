@@ -1,0 +1,20 @@
+{
+  "tiktok": {
+    "username": "YOUR_TIKTOK_USERNAME"
+  },
+  "overlay": {
+    "position": "center",
+    "ttlMs": 6000,
+    "custom": false,
+    "scale": 1
+  },
+  "soundboard": {
+    "key": "F1",
+    "dir": "./sounds",
+    "port": 8080,
+    "volume": 0.5,
+    "map": {
+      "F1": "sound-1.mp3"
+    }
+  }
+}

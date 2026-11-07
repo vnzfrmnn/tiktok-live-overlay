@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Soundboard</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; background: #111; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
+      body { display: flex; flex-direction: column; align-items: center; padding: 16px; }
+      h1 { font-size: 22px; margin-bottom: 12px; text-align: center; }
+      #grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; max-width: 480px; }
+      button {
+        background: #1f1f2e;
+        border: 1px solid #333;
+        color: #fff;
+        border-radius: 12px;
+        padding: 18px 8px;
+        font-size: 14px;
+        min-height: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      button:active { transform: scale(0.97); background: #2a2a40; }
+      #status { margin-top: 16px; font-size: 13px; color: #aaa; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <h1>🎧 Soundboard</h1>
+    <div id="grid"></div>
+    <div id="status">Memuat suara...</div>
+    <script>
+      const grid = document.getElementById('grid');
+      const status = document.getElementById('status');
+      function playKey(key) {
+        return fetch('/sound/' + encodeURIComponent(key), { method: 'GET' })
+          .then((r) => { if (!r.ok) throw new Error('not found'); return r.json(); })
+          .then(() => { status.textContent = '🔊 Playing: ' + key; })
+          .catch(() => { status.textContent = '❌ Sound tidak ditemukan: ' + key; });
+      }
+      fetch('/sounds')
+        .then((r) => r.json())
+        .then((files) => {
+          status.textContent = files.length + ' sounds ready';
+          files.forEach((f) => {
+            const btn = document.createElement('button');
+            btn.dataset.key = f.key;
+            btn.textContent = f.name;
+            btn.addEventListener('click', () => playKey(f.key));
+            grid.appendChild(btn);
+          });
+        })
+        .catch(() => { status.textContent = '❌ Gagal memuat soundboard'; });
+    </script>
+  </body>
+</html>

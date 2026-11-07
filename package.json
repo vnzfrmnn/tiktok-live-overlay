@@ -1,0 +1,30 @@
+{
+  "name": "tiktok-live-overlay",
+  "version": "1.0.0",
+  "description": "TikTok Live comment overlay and soundboard for streamers",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": [
+    "tiktok",
+    "live",
+    "overlay",
+    "streamer",
+    "soundboard"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/yourrepo.git"
+  },
+  "dependencies": {
+    "tiktok-live-connector": "^2.5.0"
+  },
+  "devDependencies": {
+    "electron": "^38.8.6",
+    "electron-builder": "^24.13.3"
+  }
+}

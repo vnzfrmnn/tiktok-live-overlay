@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>TikTok Overlay - Control</title>
+    <link rel="stylesheet" href="control.css" />
+  </head>
+  <body>
+    <div class="panel">
+      <h1>🎮 TikTok Live Overlay - Control</h1>
+      <p class="hint">Jendela ini BISA di-minimize / close. Overlay komentar di layar utama tidak akan ngunci laptop kamu.</p>
+
+      <section class="card">
+        <h2>🔗 TikTok</h2>
+        <label>Username TikTok yang sedang live:</label>
+        <div class="row">
+          <input id="username" type="text" placeholder="contoh: usernamekamu" />
+          <button id="saveUsername">Simpan</button>
+        </div>
+        <div class="row">
+          <span id="status" class="status">Status: ...</span>
+          <button id="reconnect">Reconnect</button>
+        </div>
+        <div id="lastChat" style="margin-top:8px;font-size:13px;color:#7ee081;min-height:18px;">💬 Chat terakhir: (belum ada)</div>
+      </section>
+
+      <section class="card">
+        <h2>💬 Posisi Komentar</h2>
+        <div class="row buttons">
+          <button data-pos="center">Tengah</button>
+          <button data-pos="top">Atas</button>
+          <button data-pos="bottom">Bawah</button>
+        </div>
+        <div style="margin-top:10px;">
+          <button id="toggleDrag" style="width:100%;">🖐️ Mode Geser: OFF — klik ON lalu seret bubble chat di layar</button>
+          <p class="small" style="margin-top:6px;">Geser: seret badan bubble. Resize: tarik tepi kanan (lebar saja), tepi bawah (tinggi saja), sudut kanan-bawah (keduanya). Kalau OFF, klik tembus ke game lagi.</p>
+        </div>
+        <div style="margin-top:10px;">
+          <label>Atur manual X (kiri-kanan): <span id="xVal">0</span>px</label>
+          <input id="xSlider" type="range" min="0" max="1920" value="0" style="width:100%;" />
+          <label style="margin-top:8px;">Atur manual Y (atas-bawah): <span id="yVal">0</span>px</label>
+          <input id="ySlider" type="range" min="0" max="1080" value="0" style="width:100%;" />
+        </div>
+        <div style="margin-top:10px;">
+          <label>Perbesar / Kecilkan Chat (tulisan & avatar): <span id="scaleVal">100</span>%</label>
+          <input id="scaleSlider" type="range" min="50" max="250" value="100" style="width:100%;" />
+          <p class="small">Geser slider ini buat perbesar tulisan. Geser tepi border buat perbesar lebar/tinggi kotak chat-nya.</p>
+          <button id="resetSize" style="width:100%;margin-top:8px;background:#2d2d4a;">↺ Reset ukuran & posisi chat</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>🎧 Soundboard via HP</h2>
+        <label>🔊 Volume Soundboard saja (bukan volume sistem): <span id="volVal">50</span>%</label>
+        <input id="volSlider" type="range" min="0" max="100" value="50" style="width:100%;" />
+        <p class="small">Kecilkan ini kalau soundboard ngejerit di OBS. Game & musik lain tetap normal.</p>
+        <p style="margin-top:10px;">HP buka alamat ini (harus Wi-Fi sama):</p>
+        <code id="hpUrl">http://...:8080/</code>
+        <p class="small">Tekan F1-F9 di keyboard juga bisa. Hotkey darurat: Ctrl+Shift+O (sembunyikan overlay), Ctrl+Shift+Q (quit)</p>
+        <div id="soundList" class="sound-list"></div>
+      </section>
+
+      <section class="card actions">
+        <button id="toggleOverlay">Sembunyikan Overlay</button>
+        <button id="quitBtn" class="danger">Quit App</button>
+      </section>
+
+      <p class="small footer">Kalau stuck lagi: tekan Ctrl+Shift+Q, atau buka Task Manager (Ctrl+Shift+Esc) → End Task "TikTok Live Overlay"</p>
+    </div>
+
+    <script src="control.js"></script>
+  </body>
+</html>
