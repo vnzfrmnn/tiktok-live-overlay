@@ -36,6 +36,45 @@ if (!api) {
 
 let config = null;
 let audioEl = null;
+let notifyAudio = null;
+let notifyEnabled = localStorage.getItem('notifyEnabled') !== '0';
+let lastNotifyAt = 0;
+let lastNotifyKey = '';
+
+function beepNotify() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = Math.max(0, Math.min(1, currentVolume || 0.5)) * 0.25;
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+    osc.onended = () => ctx.close();
+  } catch (e) {}
+}
+
+function playNotify() {
+  if (!notifyEnabled) return;
+  const now = Date.now();
+  if (now - lastNotifyAt < 700) return;
+  lastNotifyAt = now;
+  try {
+    if (notifyAudio) { notifyAudio.pause(); notifyAudio = null; }
+    const port = (config && config.soundboard && config.soundboard.port) || 8080;
+    notifyAudio = new Audio(`http://127.0.0.1:${port}/audio/notif.mp3`);
+    notifyAudio.volume = currentVolume;
+    notifyAudio.onended = () => { notifyAudio = null; };
+    notifyAudio.onerror = () => { beepNotify(); notifyAudio = null; };
+    const p = notifyAudio.play();
+    if (p && p.catch) p.catch(() => { beepNotify(); });
+  } catch (e) {
+    beepNotify();
+  }
+}
 
 async function init() {
   if (!api) {
@@ -131,6 +170,12 @@ if (api) {
     const el = document.getElementById('lastChat');
     if (el) el.textContent = `💬 @${msg.username || 'Anonim'}: ${msg.text || ''}`;
     console.log('[control] CHAT:', msg);
+    // Notif suara, tapi jangan dobel kalau pesan sama persis dalam 2 detik
+    const key = (msg.username || '') + '|' + (msg.text || '');
+    if (key !== lastNotifyKey || Date.now() - lastNotifyAt > 2000) {
+      lastNotifyKey = key;
+      playNotify();
+    }
   });
 
   function playUrlLocal(url) {
@@ -270,6 +315,15 @@ if (api) {
     });
   }
   updateDragBtn();
+
+  const notifyToggle = document.getElementById('notifyToggle');
+  if (notifyToggle) {
+    notifyToggle.checked = notifyEnabled;
+    notifyToggle.addEventListener('change', () => {
+      notifyEnabled = notifyToggle.checked;
+      localStorage.setItem('notifyEnabled', notifyEnabled ? '1' : '0');
+    });
+  }
 
   const resetBtn = document.getElementById('resetSize');
   if (resetBtn) {
