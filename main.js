@@ -322,23 +322,31 @@ function playSoundByKey(key) {
 }
 
 // FIX: daftarkan SEMUA key di map (F1-F9), bukan cuma satu
-function registerSoundboard() {
+// Pisahkan hotkey soundboard vs hotkey darurat, biar bisa di-re-register tanpa dobel
+let soundKeys = [];
+
+function registerSoundKeys() {
+  // Lepas dulu key soundboard lama (jangan lepas hotkey darurat Ctrl+Shift+D dll)
+  soundKeys.forEach((k) => { try { globalShortcut.unregister(k); } catch (e) {} });
+  soundKeys = [];
   const map = config.soundboard.map || {};
   const keys = Object.keys(map);
-  // Pastikan key utama juga terdaftar walau tidak di map
   if (config.soundboard.key && !keys.includes(config.soundboard.key)) {
     keys.push(config.soundboard.key);
   }
   keys.forEach((key) => {
     try {
       const registered = globalShortcut.register(key, () => playSoundByKey(key));
-      if (!registered) {
-        console.warn(`[soundboard] Gagal mendaftarkan global keybind: ${key} (mungkin sudah dipakai app lain yang belum ditutup)`);
-      }
+      if (registered) soundKeys.push(key);
+      else console.warn(`[soundboard] Gagal mendaftarkan global keybind: ${key} (mungkin sudah dipakai app lain)`);
     } catch (e) {
       console.warn(`[soundboard] Error daftar keybind ${key}:`, e.message);
     }
   });
+}
+
+function registerSoundboard() {
+  registerSoundKeys();
 
   // HOTKEY DARURAT biar tidak stuck lagi
   globalShortcut.register('CommandOrControl+Shift+O', () => {
@@ -367,6 +375,27 @@ function registerSoundboard() {
   });
 }
 
+const ALLOWED_SOUND_KEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
+
+function setSoundKey(file, key) {
+  if (!file || !ALLOWED_SOUND_KEYS.includes(key)) return { ok: false, error: 'key tidak valid (F1-F12 saja)' };
+  if (!config.soundboard.map) config.soundboard.map = {};
+  // hapus mapping lama untuk file ini
+  for (const k of Object.keys(config.soundboard.map)) {
+    if (config.soundboard.map[k] === file) delete config.soundboard.map[k];
+  }
+  // 1 key = 1 file, timpa kalau key itu sudah dipakai file lain
+  config.soundboard.map[key] = file;
+  config.soundboard.key = key;
+  saveConfig();
+  registerSoundKeys();
+  const payload = { file, key };
+  if (controlWin && controlWin.webContents) {
+    controlWin.webContents.send('soundboard:bind', payload);
+  }
+  return { ok: true, ...payload };
+}
+
 function startSoundboardServer() {
   if (soundboardServer) return soundboardServer;
   const port = config.soundboard.port || 8080;
@@ -378,16 +407,33 @@ function startSoundboardServer() {
       res.end(fs.readFileSync(path.join(__dirname, 'public', 'soundboard.html'), 'utf8'));
     } else if (req.method === 'GET' && u.pathname === '/sounds') {
       try {
+        const map = config.soundboard.map || {};
+        const reverse = {};
+        for (const [k, f] of Object.entries(map)) reverse[f] = k;
         const files = fs
           .readdirSync(config.soundboard.dir)
           .filter((f) => SOUND_EXTENSIONS.includes(path.extname(f).toLowerCase()))
-          .map((f) => ({ name: f, key: path.basename(f, path.extname(f)) }));
+          .map((f) => ({ name: f, key: path.basename(f, path.extname(f)), bindKey: reverse[f] || '' }));
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(files));
       } catch (e) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: String(e) }));
       }
+    } else if (req.method === 'POST' && u.pathname === '/bind') {
+      let body = '';
+      req.on('data', (c) => { body += c; if (body.length > 5000) req.destroy(); });
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body || '{}');
+          const result = setSoundKey(data.file, data.key);
+          res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(result));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: String(e) }));
+        }
+      });
     } else if (req.method === 'GET' && u.pathname.startsWith('/sound/')) {
       const key = decodeURIComponent(u.pathname.slice('/sound/'.length).split('?')[0]);
       const p = resolveSoundPath(key);
@@ -528,6 +574,9 @@ app.whenReady().then(() => {
       overlayWin.webContents.send('sound:volume', { volume: v });
     }
     return config;
+  });
+  ipcMain.handle('control:set-bind', (e, data) => {
+    return setSoundKey(data && data.file, data && data.key);
   });
   ipcMain.handle('control:set-username', async (e, username) => {
     config.tiktok.username = (username || '').trim();

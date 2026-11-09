@@ -8,50 +8,61 @@
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; background: #111; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
       body { display: flex; flex-direction: column; align-items: center; padding: 16px; }
-      h1 { font-size: 22px; margin-bottom: 12px; text-align: center; }
+      h1 { font-size: 22px; margin-bottom: 4px; text-align: center; }
+      .hint { font-size: 12px; color: #999; margin-bottom: 12px; text-align: center; }
       #grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; max-width: 480px; }
-      button {
-        background: #1f1f2e;
-        border: 1px solid #333;
-        color: #fff;
-        border-radius: 12px;
-        padding: 18px 8px;
-        font-size: 14px;
-        min-height: 60px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+      .card { background: #1f1f2e; border: 1px solid #333; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .card button {
+        background: transparent; border: none; color: #fff;
+        border-radius: 8px; padding: 10px 6px; font-size: 14px; min-height: 44px;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;
       }
-      button:active { transform: scale(0.97); background: #2a2a40; }
+      .card button:active { transform: scale(0.97); }
+      .card select { background: #111; color: #fff; border: 1px solid #444; border-radius: 8px; padding: 8px; font-size: 13px; width: 100%; }
       #status { margin-top: 16px; font-size: 13px; color: #aaa; text-align: center; }
     </style>
   </head>
   <body>
     <h1>🎧 Soundboard</h1>
+    <div class="hint">Tap nama file buat bunyi. Ganti dropdown key buat ubah keybind (F1-F12), langsung tersimpan.</div>
     <div id="grid"></div>
     <div id="status">Memuat suara...</div>
     <script>
       const grid = document.getElementById('grid');
       const status = document.getElementById('status');
+      const KEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
       function playKey(key) {
         return fetch('/sound/' + encodeURIComponent(key), { method: 'GET' })
           .then((r) => { if (!r.ok) throw new Error('not found'); return r.json(); })
           .then(() => { status.textContent = '🔊 Playing: ' + key; })
           .catch(() => { status.textContent = '❌ Sound tidak ditemukan: ' + key; });
       }
-      fetch('/sounds')
-        .then((r) => r.json())
-        .then((files) => {
-          status.textContent = files.length + ' sounds ready';
-          files.forEach((f) => {
-            const btn = document.createElement('button');
-            btn.dataset.key = f.key;
-            btn.textContent = f.name;
-            btn.addEventListener('click', () => playKey(f.key));
-            grid.appendChild(btn);
-          });
-        })
-        .catch(() => { status.textContent = '❌ Gagal memuat soundboard'; });
+      async function bindKey(file, key) {
+        const r = await fetch('/bind', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ file, key }) });
+        const j = await r.json();
+        status.textContent = j.ok ? `✅ Key ${file} jadi ${key}` : `❌ Gagal: ${j.error || ''}`;
+        if (j.ok) loadSounds();
+      }
+      async function loadSounds() {
+        const r = await fetch('/sounds');
+        const files = await r.json();
+        status.textContent = files.length + ' sounds ready';
+        grid.innerHTML = '';
+        files.forEach((f) => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          const btn = document.createElement('button');
+          btn.textContent = (f.bindKey ? f.bindKey + ' • ' : '') + f.name;
+          btn.addEventListener('click', () => playKey(f.bindKey || f.key));
+          const sel = document.createElement('select');
+          sel.innerHTML = `<option value="">Ganti key...</option>` + KEYS.map((k) => `<option value="${k}" ${k === f.bindKey ? 'selected' : ''}>${k}</option>`).join('');
+          sel.addEventListener('change', () => { if (sel.value) bindKey(f.name, sel.value); });
+          card.appendChild(btn);
+          card.appendChild(sel);
+          grid.appendChild(card);
+        });
+      }
+      loadSounds().catch(() => { status.textContent = '❌ Gagal memuat soundboard'; });
     </script>
   </body>
 </html>

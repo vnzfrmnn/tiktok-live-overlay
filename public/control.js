@@ -13,10 +13,12 @@ if (!api) {
       onVisibility: (cb) => ipcRenderer.on('overlay:visibility', (event, payload) => cb(payload)),
       onSoundboardInfo: (cb) => ipcRenderer.on('soundboard:info', (event, payload) => cb(payload)),
       onVolume: (cb) => ipcRenderer.on('sound:volume', (event, payload) => cb(payload)),
+      onBind: (cb) => ipcRenderer.on('soundboard:bind', (event, payload) => cb(payload)),
       toggleOverlay: () => ipcRenderer.invoke('control:toggle-overlay'),
       quit: () => ipcRenderer.invoke('control:quit'),
       setPosition: (pos) => ipcRenderer.invoke('control:set-position', pos),
       setVolume: (v) => ipcRenderer.invoke('control:set-volume', v),
+      setBind: (data) => ipcRenderer.invoke('control:set-bind', data),
       setXY: (xy) => ipcRenderer.invoke('control:set-xy', xy),
       setDrag: (on) => ipcRenderer.invoke('control:set-drag', on),
       getDrag: () => ipcRenderer.invoke('control:get-drag'),
@@ -118,14 +120,36 @@ function renderSoundList() {
   const container = document.getElementById('soundList');
   if (!container) return;
   const map = (config && config.soundboard && config.soundboard.map) || {};
+  const reverse = {};
+  for (const [k, f] of Object.entries(map)) reverse[f] = k;
   container.innerHTML = '';
-  Object.entries(map).forEach(([key, file]) => {
-    const btn = document.createElement('button');
-    btn.textContent = `${key}: ${file}`;
-    btn.title = `Test ${key}`;
-    btn.addEventListener('click', () => api.playKey(key));
-    container.appendChild(btn);
+  const keys = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
+  Object.values(map).forEach((file) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    const playBtn = document.createElement('button');
+    playBtn.textContent = `${reverse[file] || '-'}: ${file}`;
+    playBtn.title = `Test ${reverse[file] || ''}`;
+    playBtn.style.flex = '1';
+    playBtn.style.overflow = 'hidden';
+    playBtn.style.textOverflow = 'ellipsis';
+    playBtn.style.whiteSpace = 'nowrap';
+    playBtn.addEventListener('click', () => api.playKey(reverse[file] || file));
+    const sel = document.createElement('select');
+    sel.innerHTML = `<option value="">Ganti key...</option>` + keys.map((k) => `<option value="${k}" ${k === reverse[file] ? 'selected' : ''}>${k}</option>`).join('');
+    sel.addEventListener('change', async () => {
+      if (!sel.value) return;
+      await api.setBind({ file, key: sel.value });
+      config.soundboard.map = (await api.getConfig()).soundboard.map;
+      renderSoundList();
+    });
+    row.appendChild(playBtn);
+    row.appendChild(sel);
+    container.appendChild(row);
   });
+  if (!Object.keys(map).length) {
+    container.innerHTML = `<p class="small">Belum ada mapping. Isi map di config.json atau ganti dari web HP.</p>`;
+  }
 }
 
 function toFileUrl(p) {
@@ -313,6 +337,9 @@ if (api) {
       if (volVal) volVal.textContent = pct;
       if (audioEl) audioEl.volume = currentVolume;
     });
+  }
+  if (api.onBind) {
+    api.onBind(() => { api.getConfig().then((c) => { config = c; renderSoundList(); }).catch(() => {}); });
   }
   updateDragBtn();
 
