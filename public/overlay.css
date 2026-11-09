@@ -25,6 +25,7 @@ body {
   gap: calc(8px * var(--s));
   pointer-events: none;
   width: calc(340px * var(--s));
+  overflow: hidden;
 }
 
 body.position-center #chat-box {

@@ -22,7 +22,8 @@ if (!api) {
 }
 
 let config = null;
-const MAX_MESSAGES = 5;
+const MAX_HISTORY = 30;
+let history = [];
 let dragMode = false;
 
 function applyPosition(position) {
@@ -51,6 +52,7 @@ function setDragMode(on) {
 function applyScale(s) {
   const scale = Math.max(0.5, Math.min(2.5, Number(s) || 1));
   document.documentElement.style.setProperty('--s', scale);
+  renderHistory();
 }
 
 function applySize(width, height) {
@@ -60,6 +62,7 @@ function applySize(width, height) {
   else box.style.width = '';
   if (height) box.style.height = Math.max(120, Math.min(1000, Number(height) || 0)) + 'px';
   else box.style.height = '';
+  renderHistory();
 }
 
 function getCurrentSize() {
@@ -72,30 +75,45 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c]));
 }
 
-function addChat(msg) {
+function getScale() {
+  return Number(document.documentElement.style.getPropertyValue('--s')) || 1;
+}
+
+function getCapacity() {
+  const box = document.getElementById('chat-box');
+  const h = box ? box.clientHeight : 0;
+  if (!h) return 5;
+  // tinggi rata-rata 1 chat ~ 90px * scale
+  const per = 90 * getScale();
+  return Math.max(1, Math.min(MAX_HISTORY, Math.floor(h / per)));
+}
+
+function renderHistory() {
   const box = document.getElementById('chat-list');
   if (!box) return;
+  const cap = getCapacity();
+  const visible = history.slice(-cap);
+  box.innerHTML = '';
+  visible.forEach((msg, idx) => {
+    const item = document.createElement('div');
+    item.className = 'chat-item' + (idx < visible.length - 2 ? ' old' : '');
+    const initial = (msg.username || '?').replace(/^@/, '').charAt(0) || '?';
+    item.innerHTML = `<div class="avatar">${escapeHtml(initial)}</div>
+      <div class="bubble-wrap">
+        <span class="username">${escapeHtml('@' + msg.username.replace(/^@/, ''))}</span>
+        <div class="text">${escapeHtml(msg.text)}</div>
+      </div>`;
+    box.appendChild(item);
+  });
+}
+
+function addChat(msg) {
   const username = msg.username || 'Anonim';
   const text = msg.text || '';
   if (!text) return;
-
-  const item = document.createElement('div');
-  item.className = 'chat-item';
-  const initial = (username || '?').replace(/^@/, '').charAt(0) || '?';
-  item.innerHTML = `<div class="avatar">${escapeHtml(initial)}</div>
-    <div class="bubble-wrap">
-      <span class="username">${escapeHtml('@' + username.replace(/^@/, ''))}</span>
-      <div class="text">${escapeHtml(text)}</div>
-    </div>`;
-
-  box.appendChild(item);
-
-  while (box.children.length > MAX_MESSAGES) {
-    box.removeChild(box.firstChild);
-  }
-  Array.from(box.children).forEach((el, idx) => {
-    el.classList.toggle('old', idx < box.children.length - 2);
-  });
+  history.push({ username, text });
+  if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+  renderHistory();
 }
 
 // Drag: tahan & geser #chat-box saat drag-mode ON
