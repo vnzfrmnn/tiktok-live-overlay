@@ -1,79 +1,301 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Soundboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
+      :root {
+        --bg: #0f172a;
+        --surface: #1b2540;
+        --surface-2: #16203a;
+        --line: #2a3a5c;
+        --text: #e6edf7;
+        --muted: #8fa3bf;
+        --accent: #7dd3fc;
+        --accent-strong: #38bdf8;
+        --ink: #0b1220;
+        --font-display: 'Space Grotesk', system-ui, sans-serif;
+        --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+      }
+
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 100%; min-height: 100%; background: #10101a; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
-      body { display: flex; flex-direction: column; align-items: center; padding: 16px 14px 86px; }
-      .top { width: 100%; max-width: 480px; display: flex; flex-direction: column; align-items: center; position: sticky; top: 0; z-index: 5; padding: 8px 0 12px; background: #10101a; }
-      h1 { font-size: 24px; margin-bottom: 4px; text-align: center; }
-      .hint { font-size: 13px; color: #9a9ab0; text-align: center; line-height: 1.45; max-width: 420px; }
-      #grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; max-width: 480px; min-height: 160px; }
-      .card { background: #202036; border: 1px solid #2e2e4a; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-      .card button {
-        background: #2b2b44; border: 1px solid #3a3a56; color: #fff;
-        border-radius: 10px; padding: 12px 8px; font-size: 14px; font-weight: 700; min-height: 56px;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; cursor: pointer;
+
+      html { height: 100%; }
+      body {
+        min-height: 100vh;
+        height: 100dvh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+        font-size: 15px;
+        line-height: 1.5;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: 0 14px calc(76px + env(safe-area-inset-bottom));
       }
-      .card button:active { transform: scale(0.98); background: #fe2c55; }
-      .card select { background: #10101a; color: #fff; border: 1px solid #3a3a56; border-radius: 10px; padding: 10px; font-size: 13px; width: 100%; min-height: 40px; }
-      .card select:focus, .card button:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+
+      /* Bar atas lengket */
+      .top {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+        margin: 0 -14px;
+        padding: 14px 14px 12px;
+        padding-top: max(14px, env(safe-area-inset-top));
+      }
+      .top-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      h1 {
+        font-family: var(--font-display);
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .nav {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+        background: var(--surface-2);
+        transition: background 0.12s ease, border-color 0.12s ease;
+      }
+      .nav:hover, .nav:active { background: var(--surface); border-color: var(--accent); }
+      .nav:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .hint {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      /* Grid kartu sound */
+      #grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        width: 100%;
+        max-width: 560px;
+        margin: 14px auto 0;
+        align-content: start;
+      }
+      @media (min-width: 700px) {
+        #grid { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 760px; }
+      }
+
+      .card {
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+      }
+      .keyline {
+        font-family: var(--font-display);
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: 0.02em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .keyline.none { color: var(--muted); font-weight: 500; }
+      .card .play {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 14px 8px;
+        min-height: 56px;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        width: 100%;
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      }
+      .card .play:hover { border-color: var(--accent); }
+      .card .play:active { background: var(--accent); border-color: var(--accent); color: var(--ink); }
+      .card .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+      .card select {
+        width: 100%;
+        min-height: 44px;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 10px;
+        font-family: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .card select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+
+      /* Bar status bawah */
       #status {
-        position: fixed; left: 50%; transform: translateX(-50%); bottom: 10px;
-        width: calc(100% - 24px); max-width: 456px; min-height: 48px;
-        display: flex; align-items: center; justify-content: center; text-align: center;
-        background: #202036; border: 1px solid #2e2e4a; border-radius: 12px;
-        font-size: 13px; color: #aaa; padding: 10px 12px; z-index: 10;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 12px 14px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+        font-size: 14px;
+        color: var(--muted);
       }
-      @media (min-width: 700px) { #grid { grid-template-columns: repeat(3, 1fr); max-width: 720px; } }
     </style>
   </head>
   <body>
-    <div class="top">
-      <h1>🎧 Soundboard</h1>
-      <div class="hint">Tap nama file buat bunyi. Ganti dropdown key buat ubah keybind (F1-F12), langsung tersimpan.</div>
-    </div>
+    <header class="top">
+      <div class="top-row">
+        <h1>Soundboard</h1>
+        <a class="nav" href="/chat">Chat</a>
+      </div>
+      <p class="hint">Tap nama sound buat bunyi. Ganti dropdown keybind buat ubah tombolnya, langsung tersimpan.</p>
+    </header>
+
     <div id="grid"></div>
     <div id="status">Memuat suara...</div>
+
     <script>
-      const grid = document.getElementById('grid');
-      const status = document.getElementById('status');
-      const KEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
-      function playKey(key) {
-        return fetch('/sound/' + encodeURIComponent(key), { method: 'GET' })
-          .then((r) => { if (!r.ok) throw new Error('not found'); return r.json(); })
-          .then(() => { status.textContent = '🔊 Playing: ' + key; })
-          .catch(() => { status.textContent = '❌ Sound tidak ditemukan: ' + key; });
-      }
-      async function bindKey(file, key) {
-        const r = await fetch('/bind', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ file, key }) });
-        const j = await r.json();
-        status.textContent = j.ok ? `✅ Key ${file} jadi ${key}` : `❌ Gagal: ${j.error || ''}`;
-        if (j.ok) loadSounds();
-      }
-      async function loadSounds() {
-        const r = await fetch('/sounds');
-        const files = await r.json();
-        status.textContent = files.length + ' sounds ready';
-        grid.innerHTML = '';
-        files.forEach((f) => {
-          const card = document.createElement('div');
-          card.className = 'card';
-          const btn = document.createElement('button');
-          btn.textContent = (f.bindKey ? f.bindKey + ' • ' : '') + f.name;
-          btn.addEventListener('click', () => playKey(f.bindKey || f.key));
-          const sel = document.createElement('select');
-          sel.innerHTML = `<option value="">Ganti key...</option>` + KEYS.map((k) => `<option value="${k}" ${k === f.bindKey ? 'selected' : ''}>${k}</option>`).join('');
-          sel.addEventListener('change', () => { if (sel.value) bindKey(f.name, sel.value); });
-          card.appendChild(btn);
-          card.appendChild(sel);
-          grid.appendChild(card);
+      (function () {
+        var grid = document.getElementById('grid');
+        var status = document.getElementById('status');
+        var BASE_KEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
+        var allSounds = [];
+
+        function esc(s) {
+          return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        }
+
+        // Opsi dropdown: F1-F12 plus semua bindKey yang sedang terpasang (dedupe).
+        function optionsFor(current) {
+          var seen = {};
+          var extras = [];
+          BASE_KEYS.forEach(function (k) { seen[k] = true; });
+          allSounds.forEach(function (f) {
+            var k = f && f.bindKey;
+            if (k && !seen[k]) { seen[k] = true; extras.push(k); }
+          });
+          if (current && !seen[current]) { seen[current] = true; extras.push(current); }
+          extras.sort();
+          return BASE_KEYS.concat(extras).map(function (k) {
+            var sel = k === current ? ' selected' : '';
+            return '<option value="' + esc(k) + '"' + sel + '>' + esc(k) + '</option>';
+          }).join('');
+        }
+
+        function playKey(key) {
+          return fetch('/sound/' + encodeURIComponent(key), { method: 'GET' })
+            .then(function (r) { if (!r.ok) throw new Error('not found'); return r.json(); })
+            .then(function () { status.textContent = 'Memutar: ' + key; })
+            .catch(function () { status.textContent = 'Sound tidak ditemukan: ' + key; });
+        }
+
+        function bindKey(file, key) {
+          return fetch('/bind', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file: file, key: key })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (j) {
+              if (j && j.ok) {
+                return loadSounds().then(function () {
+                  status.textContent = 'Keybind disimpan: ' + key;
+                });
+              }
+              status.textContent = 'Gagal: ' + ((j && j.error) || 'keybind tidak bisa disimpan');
+            })
+            .catch(function () { status.textContent = 'Gagal: server tidak merespons'; });
+        }
+
+        function loadSounds() {
+          return fetch('/sounds')
+            .then(function (r) { return r.json(); })
+            .then(function (files) {
+              allSounds = Array.isArray(files) ? files : [];
+              status.textContent = allSounds.length + ' suara siap';
+              grid.innerHTML = '';
+              allSounds.forEach(function (f) {
+                var card = document.createElement('div');
+                card.className = 'card';
+
+                var keyline = document.createElement('div');
+                if (f.bindKey) {
+                  keyline.className = 'keyline';
+                  keyline.textContent = f.bindKey;
+                } else {
+                  keyline.className = 'keyline none';
+                  keyline.textContent = 'belum ada key';
+                }
+
+                var btn = document.createElement('button');
+                btn.className = 'play';
+                btn.type = 'button';
+                btn.textContent = f.name;
+                btn.addEventListener('click', function () {
+                  playKey(f.bindKey || f.key);
+                });
+
+                var sel = document.createElement('select');
+                sel.setAttribute('aria-label', 'Keybind untuk ' + f.name);
+                sel.innerHTML = '<option value="">Ganti key...</option>' + optionsFor(f.bindKey || '');
+                sel.addEventListener('change', function () {
+                  if (sel.value) bindKey(f.name, sel.value);
+                });
+
+                card.appendChild(keyline);
+                card.appendChild(btn);
+                card.appendChild(sel);
+                grid.appendChild(card);
+              });
+            });
+        }
+
+        loadSounds().catch(function () {
+          status.textContent = 'Gagal memuat soundboard';
         });
-      }
-      loadSounds().catch(() => { status.textContent = '❌ Gagal memuat soundboard'; });
+      })();
     </script>
   </body>
 </html>

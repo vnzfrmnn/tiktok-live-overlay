@@ -44,6 +44,12 @@ Salin `config.example.json` jadi `config.json` lalu isi username kamu:
 
 Taruh file di `sounds/` (mapping F1–F9 lewat `map` atau HP), test dari Control / HP (`http://<IP>:8080/`).
 
+## Halaman HP
+
+- `http://<IP-laptop>:8080/` — Soundboard.
+- `http://<IP-laptop>:8080/chat` — Chat + statistik (penonton, like, gift, join).
+- Ganti keybind di Control: klik tombol key lalu tekan tombol keyboard apa saja (boleh dikombinasi Ctrl/Alt/Shift; tombol polos tanpa modifier akan mengunci tombol itu untuk app lain selama overlay jalan).
+
 ## Hotkey
 
 - `Ctrl+Shift+O` — tampil/sembunyikan overlay

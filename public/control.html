@@ -1,73 +1,111 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <title>TikTok Overlay - Control</title>
+    <title>Control — TikTok Live Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="control.css" />
   </head>
   <body>
     <div class="panel">
-      <h1>🎮 TikTok Live Overlay - Control</h1>
-      <p class="hint">Jendela ini BISA di-minimize / close. Overlay komentar di layar utama tidak akan ngunci laptop kamu.</p>
+      <header class="head">
+        <p class="eyebrow">TikTok Live Overlay</p>
+        <h1>Control</h1>
+        <p class="hint">Jendela ini bisa di-minimize atau ditutup. Overlay komentar di layar utama tetap jalan.</p>
+      </header>
 
       <section class="card">
-        <h2>🔗 TikTok</h2>
-        <label>Username TikTok yang sedang live:</label>
+        <h2>TikTok</h2>
+        <label for="username">Username TikTok yang sedang live</label>
         <div class="row">
           <input id="username" type="text" placeholder="contoh: usernamekamu" />
-          <button id="saveUsername">Simpan</button>
+          <button id="saveUsername" class="btn primary">Simpan</button>
         </div>
         <div class="row">
           <span id="status" class="status">Status: ...</span>
-          <button id="reconnect">Reconnect</button>
+          <button id="reconnect" class="btn">Reconnect</button>
         </div>
-        <div id="lastChat" style="margin-top:8px;font-size:13px;color:#7ee081;min-height:18px;">💬 Chat terakhir: (belum ada)</div>
-        <label style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:13px;">
-          <input id="notifyToggle" type="checkbox" checked style="width:16px;height:16px;" />
-          🔔 Suara notif tiap chat masuk (pakai volume Soundboard)
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-top">👁 <span class="stat-num" id="viewersVal">0</span></div>
+            <span class="stat-lbl">penonton</span>
+          </div>
+          <div class="stat">
+            <div class="stat-top">❤ <span class="stat-num" id="likesVal">0</span></div>
+            <span class="stat-lbl">total likes</span>
+          </div>
+        </div>
+        <div id="lastEvent" class="last-event">Belum ada event masuk.</div>
+
+        <div id="lastChat" class="last-chat">Chat terakhir: (belum ada)</div>
+        <label class="check" for="notifyToggle">
+          <input id="notifyToggle" type="checkbox" checked />
+          Suara notif tiap chat masuk (pakai volume Soundboard)
         </label>
-        <p class="small">Kalau ada file <b>notif.mp3</b> di folder sound kamu itu yang dibunyiin, kalau tidak ada bakal bunyi "ding" singkat. Sekali putar, tidak loop.</p>
+        <p class="small">Kalau ada file <b>notif.mp3</b> di folder sound, itu yang dibunyiin; kalau tidak ada, bunyi "ding" singkat. Sekali putar, tidak loop.</p>
       </section>
 
       <section class="card">
-        <h2>💬 Posisi Komentar</h2>
+        <h2>Posisi Komentar</h2>
         <div class="row buttons">
-          <button data-pos="center">Tengah</button>
-          <button data-pos="top">Atas</button>
-          <button data-pos="bottom">Bawah</button>
+          <button data-pos="center" class="btn">Tengah</button>
+          <button data-pos="top" class="btn">Atas</button>
+          <button data-pos="bottom" class="btn">Bawah</button>
         </div>
-        <div style="margin-top:10px;">
-          <button id="toggleDrag" style="width:100%;">🖐️ Mode Geser: OFF — klik ON lalu seret bubble chat di layar</button>
-          <p class="small" style="margin-top:6px;">Geser: seret badan bubble. Resize: tarik tepi kanan (lebar saja), tepi bawah (tinggi saja), sudut kanan-bawah (keduanya). Kalau OFF, klik tembus ke game lagi.</p>
+        <button id="toggleDrag" class="btn wide">Mode Geser: OFF — klik ON lalu seret bubble chat di layar</button>
+        <p class="small">Geser: seret badan bubble. Resize: tarik tepi kanan (lebar saja), tepi bawah (tinggi saja), sudut kanan-bawah (keduanya). Kalau OFF, klik tembus ke game lagi.</p>
+
+        <div class="slider">
+          <div class="slider-head">
+            <label for="xSlider">Atur manual X (kiri-kanan)</label>
+            <span class="slider-val"><span id="xVal">0</span>px</span>
+          </div>
+          <input id="xSlider" type="range" min="0" max="1920" value="0" />
         </div>
-        <div style="margin-top:10px;">
-          <label>Atur manual X (kiri-kanan): <span id="xVal">0</span>px</label>
-          <input id="xSlider" type="range" min="0" max="1920" value="0" style="width:100%;" />
-          <label style="margin-top:8px;">Atur manual Y (atas-bawah): <span id="yVal">0</span>px</label>
-          <input id="ySlider" type="range" min="0" max="1080" value="0" style="width:100%;" />
+        <div class="slider">
+          <div class="slider-head">
+            <label for="ySlider">Atur manual Y (atas-bawah)</label>
+            <span class="slider-val"><span id="yVal">0</span>px</span>
+          </div>
+          <input id="ySlider" type="range" min="0" max="1080" value="0" />
         </div>
-        <div style="margin-top:10px;">
-          <label>Perbesar / Kecilkan Chat (tulisan & avatar): <span id="scaleVal">100</span>%</label>
-          <input id="scaleSlider" type="range" min="50" max="250" value="100" style="width:100%;" />
-          <p class="small">Geser slider ini buat perbesar tulisan. Geser tepi border buat perbesar lebar/tinggi kotak chat-nya.</p>
-          <button id="resetSize" style="width:100%;margin-top:8px;background:#2d2d4a;">↺ Reset ukuran & posisi chat</button>
+        <div class="slider">
+          <div class="slider-head">
+            <label for="scaleSlider">Perbesar / kecilkan chat (tulisan &amp; avatar)</label>
+            <span class="slider-val"><span id="scaleVal">100</span>%</span>
+          </div>
+          <input id="scaleSlider" type="range" min="50" max="250" value="100" />
         </div>
+        <p class="small">Geser slider ini buat perbesar tulisan. Geser tepi border buat perbesar lebar/tinggi kotak chat-nya.</p>
+        <button id="resetSize" class="btn wide">Reset ukuran &amp; posisi chat</button>
       </section>
 
       <section class="card">
-        <h2>🎧 Soundboard via HP</h2>
-        <label>🔊 Volume Soundboard saja (bukan volume sistem): <span id="volVal">50</span>%</label>
-        <input id="volSlider" type="range" min="0" max="100" value="50" style="width:100%;" />
-        <p class="small">Kecilkan ini kalau soundboard ngejerit di OBS. Game & musik lain tetap normal.</p>
-        <p style="margin-top:10px;">HP buka alamat ini (harus Wi-Fi sama):</p>
+        <h2>Soundboard via HP</h2>
+        <div class="slider">
+          <div class="slider-head">
+            <label for="volSlider">Volume soundboard saja (bukan volume sistem)</label>
+            <span class="slider-val"><span id="volVal">50</span>%</span>
+          </div>
+          <input id="volSlider" type="range" min="0" max="100" value="50" />
+        </div>
+        <p class="small">Kecilkan ini kalau soundboard ngejerit di OBS. Game dan musik lain tetap normal.</p>
+        <p class="small">HP buka alamat ini (harus Wi-Fi sama):</p>
         <code id="hpUrl">http://...:8080/</code>
-        <p class="small">Tekan F1-F9 di keyboard juga bisa. Hotkey darurat: Ctrl+Shift+O (sembunyikan overlay), Ctrl+Shift+Q (quit)</p>
+        <p class="small">Tekan tombol keybind-nya di keyboard juga bisa. Hotkey darurat: Ctrl+Shift+O (sembunyikan overlay), Ctrl+Shift+Q (quit)</p>
         <div id="soundList" class="sound-list"></div>
+        <p class="small">Saranku pakai kombinasi Ctrl/Alt/Shift — tombol polos mengunci tombol itu untuk app lain selama overlay jalan.</p>
       </section>
 
       <section class="card actions">
-        <button id="toggleOverlay">Sembunyikan Overlay</button>
-        <button id="quitBtn" class="danger">Quit App</button>
+        <button id="toggleOverlay" class="btn">Sembunyikan Overlay</button>
+        <button id="quitBtn" class="btn danger">Quit App</button>
       </section>
 
       <p class="small footer">Kalau stuck lagi: tekan Ctrl+Shift+Q, atau buka Task Manager (Ctrl+Shift+Esc) → End Task "TikTok Live Overlay"</p>

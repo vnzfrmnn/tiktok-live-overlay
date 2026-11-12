@@ -229,6 +229,24 @@ function sendTikTokStatus(status) {
   }
 }
 
+// Statistik live (penonton & total like) + broadcast event TikTok ke Control/HP (SSE)
+const tiktokStats = { viewers: 0, likesTotal: 0 };
+const sseClients = new Set();
+
+function broadcastTikTok(payload) {
+  try {
+    if (controlWin && !controlWin.isDestroyed() && controlWin.webContents) controlWin.webContents.send('tiktok:event', payload);
+  } catch (e) {}
+  try {
+    const line = 'data: ' + JSON.stringify(payload) + '\n\n';
+    for (const res of sseClients) { try { res.write(line); } catch (e) { sseClients.delete(res); } }
+  } catch (e) {}
+}
+
+function extractUsername(event) {
+  return event.nickname || event.user?.nickname || event.displayId || event.user?.displayId || event.uniqueId || event.user?.uniqueId || event.user?.displayName || 'Anonim';
+}
+
 async function startTikTok() {
   // FIX: kalau username belum diisi, jangan coba connect (biar tidak hang)
   if (!config.tiktok.username || config.tiktok.username === 'YOUR_TIKTOK_USERNAME') {
@@ -245,8 +263,7 @@ async function startTikTok() {
     connection.on(WebcastEvent.CHAT, (event) => {
       // TikTok connector v2 kirim proto nested: event.user.nickname / event.content
       // Bukan flattened seperti legacy. Support dua-duanya.
-      const u = event.user || {};
-      const username = event.nickname || u.nickname || event.displayId || u.displayId || event.uniqueId || u.uniqueId || u.displayName || 'Anonim';
+      const username = extractUsername(event);
       const text = event.content || event.comment || event.text || '';
       console.log('[tiktok] CHAT:', username, ':', text);
       const payload = { username, text };
@@ -256,6 +273,33 @@ async function startTikTok() {
       if (controlWin && !controlWin.isDestroyed() && controlWin.webContents) {
         controlWin.webContents.send('chat', payload);
       }
+      broadcastTikTok({ type: 'chat', username, text });
+    });
+
+    connection.on(WebcastEvent.MEMBER, (event) => {
+      if (event.action !== 1) return;
+      broadcastTikTok({ type: 'member', user: extractUsername(event) });
+    });
+
+    connection.on(WebcastEvent.GIFT, (event) => {
+      const count = event.repeatCount || event.comboCount || 1;
+      broadcastTikTok({
+        type: 'gift',
+        user: extractUsername(event),
+        gift: (event.gift && event.gift.name) || ('Gift ' + event.giftId),
+        count,
+        coins: ((event.gift && event.gift.diamondCount) || 0) * count,
+      });
+    });
+
+    connection.on(WebcastEvent.LIKE, (event) => {
+      tiktokStats.likesTotal = Number(event.total) || tiktokStats.likesTotal;
+      broadcastTikTok({ type: 'like', user: extractUsername(event), count: event.count || 0, total: tiktokStats.likesTotal });
+    });
+
+    connection.on(WebcastEvent.ROOM_USER, (event) => {
+      tiktokStats.viewers = Number(event.totalUser) || 0;
+      broadcastTikTok({ type: 'stats', viewers: tiktokStats.viewers, likesTotal: tiktokStats.likesTotal });
     });
 
     connection.on(ControlEvent.ERROR, (payload) => {
@@ -264,6 +308,8 @@ async function startTikTok() {
     });
 
     const state = await connection.connect();
+    tiktokStats.viewers = 0;
+    tiktokStats.likesTotal = 0;
     sendTikTokStatus({ state: 'connected', roomId: state?.roomId });
     console.log('[tiktok] Terhubung ke room:', state?.roomId);
   } catch (e) {
@@ -343,6 +389,7 @@ function registerSoundKeys() {
       console.warn(`[soundboard] Error daftar keybind ${key}:`, e.message);
     }
   });
+  console.log('[soundboard] Keybind aktif:', soundKeys.join(', ') || '(tidak ada)');
 }
 
 function registerSoundboard() {
@@ -375,16 +422,23 @@ function registerSoundboard() {
   });
 }
 
-const ALLOWED_SOUND_KEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
-
 function setSoundKey(file, key) {
-  if (!file || !ALLOWED_SOUND_KEYS.includes(key)) return { ok: false, error: 'key tidak valid (F1-F12 saja)' };
+  if (!file) return { ok: false, error: 'File tidak valid' };
+  // Keybind bebas: 1-60 karakter, tanpa spasi, tidak diawali/diakhiri '+',
+  // dan setiap segmen yang dipisah '+' harus terisi (mis. 'Control+Shift+F9', 'Q', 'F5').
+  if (typeof key !== 'string' || key.length < 1 || key.length > 60 || /\s/.test(key) || !/^([^+]+)(\+[^+]+)*$/.test(key)) {
+    return { ok: false, error: 'Keybind tidak valid' };
+  }
   if (!config.soundboard.map) config.soundboard.map = {};
+  // Konflik: key sudah dipakai file lain -> tolak (tidak auto-move untuk key bebas)
+  const existing = config.soundboard.map[key];
+  if (existing && existing !== file) {
+    return { ok: false, error: 'Keybind ' + key + ' sudah dipakai file ' + existing };
+  }
   // hapus mapping lama untuk file ini
   for (const k of Object.keys(config.soundboard.map)) {
     if (config.soundboard.map[k] === file) delete config.soundboard.map[k];
   }
-  // 1 key = 1 file, timpa kalau key itu sudah dipakai file lain
   config.soundboard.map[key] = file;
   config.soundboard.key = key;
   saveConfig();
@@ -405,6 +459,17 @@ function startSoundboardServer() {
     if (req.method === 'GET' && (u.pathname === '/' || u.pathname === '/index.html')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(fs.readFileSync(path.join(__dirname, 'public', 'soundboard.html'), 'utf8'));
+    } else if (req.method === 'GET' && (u.pathname === '/chat' || u.pathname === '/chat.html')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(fs.readFileSync(path.join(__dirname, 'public', 'chat.html'), 'utf8'));
+    } else if (req.method === 'GET' && u.pathname === '/events') {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+      res.write(':ok\n\n');
+      sseClients.add(res);
+      req.on('close', () => sseClients.delete(res));
+    } else if (req.method === 'GET' && u.pathname === '/stats') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ viewers: tiktokStats.viewers, likesTotal: tiktokStats.likesTotal }));
     } else if (req.method === 'GET' && u.pathname === '/sounds') {
       try {
         const map = config.soundboard.map || {};

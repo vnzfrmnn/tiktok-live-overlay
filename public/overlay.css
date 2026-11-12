@@ -54,15 +54,15 @@ body.custom-pos #chat-box {
 body.drag-mode #chat-box {
   pointer-events: auto;
   cursor: move;
-  outline: calc(2px * var(--s)) dashed rgba(255, 209, 102, 0.9);
+  outline: calc(2px * var(--s)) dashed rgba(125, 211, 252, 0.9);
   outline-offset: calc(6px * var(--s));
   border-radius: calc(12px * var(--s));
 }
 
 #drag-handle {
   display: none;
-  background: rgba(255, 209, 102, 0.95);
-  color: #111;
+  background: rgba(125, 211, 252, 0.95);
+  color: #0b1220;
   font-size: calc(11px * var(--s));
   font-weight: 700;
   padding: calc(5px * var(--s)) calc(10px * var(--s));
@@ -143,8 +143,8 @@ body.drag-mode .resize-handle {
   height: calc(32px * var(--s));
   flex: 0 0 calc(32px * var(--s));
   border-radius: 50%;
-  background: #fe2c55;
-  color: #fff;
+  background: #7dd3fc;
+  color: #0b1220;
   font-weight: 700;
   font-size: calc(14px * var(--s));
   display: flex;
@@ -164,21 +164,21 @@ body.drag-mode .resize-handle {
 
 .username {
   align-self: flex-start;
-  background: rgba(0, 0, 0, 0.55);
-  color: #ffffff;
+  background: rgba(11, 18, 32, 0.72);
+  color: #7dd3fc;
   font-size: calc(11px * var(--s));
   font-weight: 700;
   letter-spacing: 0.3px;
   padding: calc(3px * var(--s)) calc(8px * var(--s));
   border-radius: 99px;
   margin-bottom: calc(4px * var(--s));
-  border: calc(1px * var(--s)) solid rgba(255,255,255,0.25);
+  border: calc(1px * var(--s)) solid rgba(125, 211, 252, 0.45);
   word-break: break-all;
 }
 
 .text {
-  background: rgba(255, 255, 255, 0.95);
-  color: #111111;
+  background: rgba(11, 18, 32, 0.88);
+  color: #e6edf7;
   font-size: calc(14px * var(--s));
   padding: calc(7px * var(--s)) calc(10px * var(--s));
   border-radius: calc(4px * var(--s)) calc(14px * var(--s)) calc(14px * var(--s)) calc(14px * var(--s));

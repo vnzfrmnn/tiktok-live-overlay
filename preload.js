@@ -16,6 +16,7 @@ function buildApi() {
     onSize: (cb) => ipcRenderer.on('overlay:size', (event, payload) => cb(payload)),
     onVolume: (cb) => ipcRenderer.on('sound:volume', (event, payload) => cb(payload)),
     onBind: (cb) => ipcRenderer.on('soundboard:bind', (event, payload) => cb(payload)),
+    onTikTokEvent: (cb) => ipcRenderer.on('tiktok:event', (event, payload) => cb(payload)),
     toggleOverlay: () => ipcRenderer.invoke('control:toggle-overlay'),
     quit: () => ipcRenderer.invoke('control:quit'),
     setPosition: (pos) => ipcRenderer.invoke('control:set-position', pos),

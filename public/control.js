@@ -7,6 +7,7 @@ if (!api) {
       getConfig: () => ipcRenderer.invoke('overlay:get-config'),
       getLanIp: () => ipcRenderer.invoke('overlay:get-lan-ip'),
       onChat: (cb) => ipcRenderer.on('chat', (event, payload) => cb(payload)),
+      onTikTokEvent: (cb) => ipcRenderer.on('tiktok:event', (event, payload) => cb(payload)),
       onStatus: (cb) => ipcRenderer.on('tiktok:status', (event, status) => cb(status)),
       onSoundPlay: (cb) => ipcRenderer.on('sound:play', (event, payload) => cb(payload)),
       onPosition: (cb) => ipcRenderer.on('overlay:position', (event, payload) => cb(payload)),
@@ -81,7 +82,7 @@ function playNotify() {
 async function init() {
   if (!api) {
     const el = document.getElementById('status');
-    if (el) el.textContent = 'Status: ❌ api tidak tersedia (preload gagal)';
+    if (el) el.textContent = 'Status: api tidak tersedia (preload gagal)';
     return;
   }
   try {
@@ -116,39 +117,136 @@ function updateHpUrl(ip, port) {
   if (el) el.textContent = `http://${ip}:${port}/`;
 }
 
+// Bangun string accelerator Electron dari KeyboardEvent.
+// Return null kalau cuma modifier atau tombol yang tidak dikenal.
+function acceleratorFromEvent(e) {
+  if (['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) return null;
+  const parts = [];
+  if (e.ctrlKey) parts.push('Control');
+  if (e.altKey) parts.push('Alt');
+  if (e.shiftKey) parts.push('Shift');
+  if (e.metaKey) parts.push('Super');
+  const code = e.code;
+  let k = null;
+  const named = {
+    Space: 'Space', Enter: 'Return', NumpadEnter: 'Return', Escape: 'Esc',
+    ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+    Backspace: 'Backspace', Delete: 'Delete', Insert: 'Insert', Home: 'Home',
+    End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Tab: 'Tab', CapsLock: 'CapsLock',
+    NumpadAdd: 'numadd', NumpadSubtract: 'numsub', NumpadMultiply: 'nummult',
+    NumpadDivide: 'numdiv', NumpadDecimal: 'numdec',
+    Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';',
+    Quote: "'", Backquote: '`', Comma: ',', Period: '.', Slash: '/', Backslash: '\\'
+  };
+  if (named[code]) k = named[code];
+  else if (/^Key[A-Z]$/.test(code)) k = code.slice(3);
+  else if (/^Digit[0-9]$/.test(code)) k = code.slice(5);
+  else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) k = code;
+  else if (/^Numpad[0-9]$/.test(code)) k = 'num' + code.slice(6);
+  if (!k) return null;
+  return [...parts, k].join('+');
+}
+
+let cancelCapture = null; // buat mematikan mode capture kalau list re-render
+
 function renderSoundList() {
   const container = document.getElementById('soundList');
   if (!container) return;
+  if (cancelCapture) { cancelCapture(); cancelCapture = null; }
   const map = (config && config.soundboard && config.soundboard.map) || {};
   const reverse = {};
   for (const [k, f] of Object.entries(map)) reverse[f] = k;
   container.innerHTML = '';
-  const keys = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
-  Object.values(map).forEach((file) => {
+  const files = Object.values(map);
+
+  files.forEach((file) => {
+    const current = reverse[file] || '';
+    const item = document.createElement('div');
+    item.className = 'sound-item';
+
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    row.className = 'sound-row';
+
+    const name = document.createElement('span');
+    name.className = 'sound-name';
+    name.textContent = file;
+    name.title = file;
+
+    const bindBtn = document.createElement('button');
+    bindBtn.className = 'btn bind-btn';
+    bindBtn.textContent = current || 'Atur tombol';
+    bindBtn.title = current ? 'Keybind: ' + current : 'Belum ada keybind — klik buat atur';
+
     const playBtn = document.createElement('button');
-    playBtn.textContent = `${reverse[file] || '-'}: ${file}`;
-    playBtn.title = `Test ${reverse[file] || ''}`;
-    playBtn.style.flex = '1';
-    playBtn.style.overflow = 'hidden';
-    playBtn.style.textOverflow = 'ellipsis';
-    playBtn.style.whiteSpace = 'nowrap';
+    playBtn.className = 'btn play-btn';
+    playBtn.textContent = 'Putar';
+    playBtn.title = 'Tes ' + file;
     playBtn.addEventListener('click', () => api.playKey(reverse[file] || file));
-    const sel = document.createElement('select');
-    sel.innerHTML = `<option value="">Ganti key...</option>` + keys.map((k) => `<option value="${k}" ${k === reverse[file] ? 'selected' : ''}>${k}</option>`).join('');
-    sel.addEventListener('change', async () => {
-      if (!sel.value) return;
-      await api.setBind({ file, key: sel.value });
-      config.soundboard.map = (await api.getConfig()).soundboard.map;
-      renderSoundList();
+
+    const err = document.createElement('div');
+    err.className = 'bind-err';
+
+    async function applyBind(key) {
+      bindBtn.disabled = true;
+      bindBtn.textContent = 'Menyimpan…';
+      try {
+        const res = await api.setBind({ file, key });
+        if (res && res.ok === false) {
+          err.textContent = res.error || 'Gagal menyimpan keybind.';
+          bindBtn.disabled = false;
+          bindBtn.textContent = current || 'Atur tombol';
+          return;
+        }
+        const fresh = await api.getConfig();
+        if (fresh) config = fresh;
+        renderSoundList();
+      } catch (e) {
+        console.error('[control] setBind gagal:', e);
+        err.textContent = 'Gagal menyimpan keybind.';
+        bindBtn.disabled = false;
+        bindBtn.textContent = current || 'Atur tombol';
+      }
+    }
+
+    bindBtn.addEventListener('click', () => {
+      if (cancelCapture) cancelCapture();
+      err.textContent = '';
+      bindBtn.classList.add('capturing');
+      bindBtn.textContent = 'Tekan tombol…';
+
+      function stopCapture() {
+        document.removeEventListener('keydown', onKey, true);
+        cancelCapture = null;
+        bindBtn.classList.remove('capturing');
+        if (!bindBtn.disabled) bindBtn.textContent = current || 'Atur tombol';
+      }
+
+      function onKey(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (ev.key === 'Escape') { stopCapture(); return; }
+        const acc = acceleratorFromEvent(ev);
+        if (!acc) return; // modifier doang — tetap nunggu
+        document.removeEventListener('keydown', onKey, true);
+        cancelCapture = null;
+        bindBtn.classList.remove('capturing');
+        applyBind(acc);
+      }
+
+      cancelCapture = stopCapture;
+      document.addEventListener('keydown', onKey, true);
     });
+
+    row.appendChild(name);
+    row.appendChild(bindBtn);
     row.appendChild(playBtn);
-    row.appendChild(sel);
-    container.appendChild(row);
+    item.appendChild(row);
+    item.appendChild(err);
+    container.appendChild(item);
   });
-  if (!Object.keys(map).length) {
-    container.innerHTML = `<p class="small">Belum ada mapping. Isi map di config.json atau ganti dari web HP.</p>`;
+
+  if (!files.length) {
+    container.innerHTML = '<p class="small">Belum ada mapping. Isi map di config.json atau ganti dari web HP.</p>';
   }
 }
 
@@ -202,6 +300,38 @@ if (api) {
     }
   });
 
+  // Strip statistik + baris event terakhir
+  function fmtStat(n) {
+    const v = Number(n);
+    return Number.isFinite(v) ? v.toLocaleString('id-ID') : '0';
+  }
+  function setStat(id, n) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fmtStat(n);
+  }
+  function setLastEvent(text) {
+    const el = document.getElementById('lastEvent');
+    if (el) el.textContent = text;
+  }
+  if (api.onTikTokEvent) {
+    api.onTikTokEvent((p) => {
+      if (!p || !p.type) return;
+      if (p.type === 'stats') {
+        setStat('viewersVal', p.viewers);
+        setStat('likesVal', p.likesTotal);
+      } else if (p.type === 'like') {
+        if (p.total != null) setStat('likesVal', p.total);
+        if (p.count) setLastEvent(`${p.user || 'Seseorang'} tap ❤ ×${p.count}`);
+      } else if (p.type === 'gift') {
+        const n = Number(p.count) || 1;
+        const coins = p.coins != null ? ` (${p.coins} coin)` : '';
+        setLastEvent(`${p.user || 'Seseorang'} kirim ${p.gift || 'gift'} ×${n}${coins}`);
+      } else if (p.type === 'member') {
+        setLastEvent(`${p.user || 'Seseorang'} bergabung`);
+      }
+    });
+  }
+
   function playUrlLocal(url) {
     return new Promise((resolve) => {
       try {
@@ -218,7 +348,7 @@ if (api) {
   api.onSoundPlay(async (payload) => {
     const key = (payload && payload.key) ? payload.key : 'sound';
     const el = document.getElementById('status');
-    if (el) el.textContent = `🔊 Playing: ${key}`;
+    if (el) el.textContent = `Playing: ${key}`;
     console.log('[audio] play:', key);
     // Backup: coba putar via HTTP di Control juga (klik tombol = user gesture, jadi pasti diizinkan)
     // Sistem Windows tetap yang utama di main, ini cadangan kalau sistem gagal.
@@ -261,7 +391,7 @@ if (api) {
   let dragOn = false;
   const dragBtn = document.getElementById('toggleDrag');
   function updateDragBtn() {
-    if (dragBtn) dragBtn.textContent = dragOn ? '🖐️ Mode Geser: ON — klik lagi buat kunci' : '🖐️ Mode Geser: OFF — klik ON lalu seret bubble chat di layar';
+    if (dragBtn) dragBtn.textContent = dragOn ? 'Mode Geser: ON — klik lagi buat kunci' : 'Mode Geser: OFF — klik ON lalu seret bubble chat di layar';
   }
   if (dragBtn) {
     dragBtn.addEventListener('click', async () => {
