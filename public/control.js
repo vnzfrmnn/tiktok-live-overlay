@@ -316,6 +316,8 @@ if (api) {
   if (api.onTikTokEvent) {
     api.onTikTokEvent((p) => {
       if (!p || !p.type) return;
+      // 'chat' dilewati — tampilan & notif suara chat sudah ditangani api.onChat
+      if (p.type === 'chat') return;
       if (p.type === 'stats') {
         setStat('viewersVal', p.viewers);
         setStat('likesVal', p.likesTotal);
@@ -328,6 +330,8 @@ if (api) {
         setLastEvent(`${p.user || 'Seseorang'} kirim ${p.gift || 'gift'} ×${n}${coins}`);
       } else if (p.type === 'member') {
         setLastEvent(`${p.user || 'Seseorang'} bergabung`);
+      } else if (p.type === 'follow') {
+        setLastEvent(`${p.user || 'Seseorang'} mulai follow`);
       }
     });
   }

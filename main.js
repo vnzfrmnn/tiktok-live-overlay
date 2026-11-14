@@ -237,6 +237,11 @@ function broadcastTikTok(payload) {
   try {
     if (controlWin && !controlWin.isDestroyed() && controlWin.webContents) controlWin.webContents.send('tiktok:event', payload);
   } catch (e) {}
+  if (payload.type === 'gift' || payload.type === 'follow') {
+    try {
+      if (overlayWin && !overlayWin.isDestroyed() && overlayWin.webContents) overlayWin.webContents.send('tiktok:event', payload);
+    } catch (e) {}
+  }
   try {
     const line = 'data: ' + JSON.stringify(payload) + '\n\n';
     for (const res of sseClients) { try { res.write(line); } catch (e) { sseClients.delete(res); } }
@@ -279,6 +284,10 @@ async function startTikTok() {
     connection.on(WebcastEvent.MEMBER, (event) => {
       if (event.action !== 1) return;
       broadcastTikTok({ type: 'member', user: extractUsername(event) });
+    });
+
+    connection.on(WebcastEvent.FOLLOW, (event) => {
+      broadcastTikTok({ type: 'follow', user: extractUsername(event) });
     });
 
     connection.on(WebcastEvent.GIFT, (event) => {

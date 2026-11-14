@@ -5,6 +5,7 @@ if (!api) {
     api = {
       getConfig: () => ipcRenderer.invoke('overlay:get-config'),
       onChat: (cb) => ipcRenderer.on('chat', (event, payload) => cb(payload)),
+      onTikTokEvent: (cb) => ipcRenderer.on('tiktok:event', (event, payload) => cb(payload)),
       onStatus: (cb) => ipcRenderer.on('tiktok:status', (event, status) => cb(status)),
       onPosition: (cb) => ipcRenderer.on('overlay:position', (event, payload) => cb(payload)),
       onSoundPlay: (cb) => ipcRenderer.on('sound:play', (event, payload) => cb(payload)),
@@ -94,26 +95,92 @@ function renderHistory() {
   const cap = getCapacity();
   const visible = history.slice(-cap);
   box.innerHTML = '';
-  visible.forEach((msg, idx) => {
+  visible.forEach((entry, idx) => {
+    const kind = (entry && entry.kind) || 'chat';
+    const oldCls = idx < visible.length - 2 ? ' old' : '';
     const item = document.createElement('div');
-    item.className = 'chat-item' + (idx < visible.length - 2 ? ' old' : '');
-    const initial = (msg.username || '?').replace(/^@/, '').charAt(0) || '?';
+
+    // Baris event datar (gift / follow) — bukan bubble chat
+    if (kind === 'gift' || kind === 'follow') {
+      item.className = 'event-item ' + kind + '-row' + oldCls;
+      const name = escapeHtml(String(entry.username || 'Anonim').replace(/^@/, ''));
+      if (kind === 'gift') {
+        const count = Number(entry.count) || 1;
+        const coins = Number(entry.coins) > 0 ? ` · ${escapeHtml(String(entry.coins))} coin` : '';
+        item.innerHTML = `<span class="event-icon">🎁</span>
+          <span class="event-text"><b>@${name}</b> kirim ${escapeHtml(entry.gift || 'gift')} ×${escapeHtml(String(count))}${coins}</span>`;
+      } else {
+        item.innerHTML = `<span class="event-icon">❤</span>
+          <span class="event-text"><b>@${name}</b> mulai follow kamu</span>`;
+      }
+      box.appendChild(item);
+      return;
+    }
+
+    // Bubble chat — tampil seperti sebelumnya
+    item.className = 'chat-item' + oldCls;
+    const initial = (entry.username || '?').replace(/^@/, '').charAt(0) || '?';
     item.innerHTML = `<div class="avatar">${escapeHtml(initial)}</div>
       <div class="bubble-wrap">
-        <span class="username">${escapeHtml('@' + msg.username.replace(/^@/, ''))}</span>
-        <div class="text">${escapeHtml(msg.text)}</div>
+        <span class="username">${escapeHtml('@' + entry.username.replace(/^@/, ''))}</span>
+        <div class="text">${escapeHtml(entry.text)}</div>
       </div>`;
     box.appendChild(item);
   });
+}
+
+function pushEntry(entry) {
+  history.push(entry);
+  if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+  renderHistory();
 }
 
 function addChat(msg) {
   const username = msg.username || 'Anonim';
   const text = msg.text || '';
   if (!text) return;
-  history.push({ username, text });
-  if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
-  renderHistory();
+  pushEntry({ username, text });
+}
+
+// TikTok kadang kirim ulang event setelah websocket nyambung lagi.
+// Cek entri terakhir: follow sama user dalam 60 detik, gift sama dalam 3 detik.
+function isDuplicateEvent(kind, entry) {
+  const last = history[history.length - 1];
+  if (!last || (last.kind || 'chat') !== kind) return false;
+  const age = Date.now() - (last.ts || 0);
+  if (kind === 'follow') {
+    return String(last.username) === String(entry.username) && age <= 60000;
+  }
+  if (kind === 'gift') {
+    return String(last.username) === String(entry.username) &&
+      String(last.gift) === String(entry.gift) &&
+      Number(last.count) === Number(entry.count) &&
+      age <= 3000;
+  }
+  return false;
+}
+
+function addGift(payload) {
+  const entry = {
+    kind: 'gift',
+    username: payload.user || 'Anonim',
+    gift: payload.gift || 'gift',
+    count: Number(payload.count) || 1,
+    coins: Number(payload.coins) || 0,
+    ts: Date.now(),
+  };
+  if (isDuplicateEvent('gift', entry)) return;
+  pushEntry(entry);
+}
+
+function addFollow(payload) {
+  const entry = {
+    kind: 'follow',
+    username: payload.user || 'Anonim',
+    ts: Date.now(),
+  };
+  if (isDuplicateEvent('follow', entry)) return;
+  pushEntry(entry);
 }
 
 // Drag: tahan & geser #chat-box saat drag-mode ON
@@ -205,6 +272,15 @@ if (api) {
   api.onChat((msg) => {
     addChat(msg);
   });
+
+  if (api.onTikTokEvent) {
+    api.onTikTokEvent((payload) => {
+      if (!payload || !payload.type) return;
+      // 'chat' dilewati di sini — chat sudah masuk lewat kanal 'chat' (api.onChat)
+      if (payload.type === 'gift') addGift(payload);
+      else if (payload.type === 'follow') addFollow(payload);
+    });
+  }
 
   api.onStatus((status) => {
     const statusEl = document.getElementById('status');

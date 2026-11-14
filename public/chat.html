@@ -187,7 +187,7 @@
     </header>
 
     <main id="feed" class="feed" aria-live="polite">
-      <p class="empty">Belum ada event. Chat, gift, dan like akan muncul di sini.</p>
+      <p class="empty">Belum ada event. Chat, gift, like, dan follow akan muncul di sini.</p>
     </main>
 
     <script>
@@ -255,6 +255,8 @@
             addEvent('🎁 ' + (p.user || 'Seseorang') + ' · ' + (p.gift || 'gift') + ' ×' + n + coins);
           } else if (p.type === 'member') {
             addEvent('→ ' + (p.user || 'Seseorang') + ' bergabung');
+          } else if (p.type === 'follow') {
+            addEvent('❤ ' + (p.user || 'Seseorang') + ' mulai follow');
           } else if (p.type === 'like') {
             if (!p.count) return;
             addEvent('❤ ' + (p.user || 'Seseorang') + ' ×' + p.count);
